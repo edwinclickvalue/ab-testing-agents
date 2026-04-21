@@ -4,9 +4,11 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from dotenv import load_dotenv
 from openai import OpenAI
 from playwright.async_api import async_playwright
 
+load_dotenv()
 client = OpenAI()
 
 SYSTEM_PROMPT = """You are a website visitor trying to complete a goal.
@@ -126,10 +128,16 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
             screenshot = await page.screenshot()
             screenshot_b64 = base64.b64encode(screenshot).decode()
 
-            content = await page.inner_text("body")
+            links = await page.evaluate("""() => {
+                return Array.from(document.querySelectorAll('a, button, [role=button]'))
+                    .map(el => ({ text: el.innerText.trim(), tag: el.tagName, href: el.href || '' }))
+                    .filter(el => el.text)
+                    .slice(0, 60);
+            }""")
+            page_text = await page.inner_text("body")
             messages.append({
                 "role": "user",
-                "content": f"Current page content (truncated):\n{content[:3000]}",
+                "content": f"CLICKABLE ELEMENTS (use exact text to click):\n{json.dumps(links, indent=2)}\n\nPAGE TEXT:\n{page_text[:2000]}",
             })
 
             response = client.chat.completions.create(
@@ -159,12 +167,29 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
                         "content": "Done.",
                     })
                 elif name == "click":
-                    try:
-                        await page.click(args["selector"], timeout=3000)
-                        await page.wait_for_load_state("networkidle", timeout=5000)
-                        result = f"Clicked: {args['selector']}"
-                    except Exception as e:
-                        result = f"Click failed: {e}"
+                    selector = args["selector"]
+                    clicked = False
+                    last_err = None
+                    for attempt in [
+                        lambda: page.click(selector, timeout=3000),
+                        lambda: page.get_by_text(selector, exact=False).first.click(timeout=3000),
+                        lambda: page.locator(f"a:has-text('{selector}')").first.click(timeout=3000),
+                        lambda: page.locator(f"button:has-text('{selector}')").first.click(timeout=3000),
+                    ]:
+                        try:
+                            await attempt()
+                            clicked = True
+                            break
+                        except Exception as e:
+                            last_err = e
+                    if clicked:
+                        try:
+                            await page.wait_for_load_state("networkidle", timeout=5000)
+                        except Exception:
+                            pass
+                        result = f"Clicked: {selector}"
+                    else:
+                        result = f"Click failed for '{selector}': {last_err}"
                     tool_results.append({"tool_call_id": tool_call.id, "role": "tool", "content": result})
                 elif name == "type_text":
                     try:
@@ -177,8 +202,15 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
                     await page.evaluate(f"window.scrollBy(0, {args['pixels']})")
                     tool_results.append({"tool_call_id": tool_call.id, "role": "tool", "content": f"Scrolled {args['pixels']}px"})
                 elif name == "get_page_content":
-                    content = await page.inner_text("body")
-                    tool_results.append({"tool_call_id": tool_call.id, "role": "tool", "content": content[:5000]})
+                    links = await page.evaluate("""() => {
+                        return Array.from(document.querySelectorAll('a, button, [role=button]'))
+                            .map(el => ({ text: el.innerText.trim(), tag: el.tagName, href: el.href || '' }))
+                            .filter(el => el.text)
+                            .slice(0, 60);
+                    }""")
+                    text = await page.inner_text("body")
+                    content = f"CLICKABLE ELEMENTS:\n{json.dumps(links, indent=2)}\n\nPAGE TEXT:\n{text[:3000]}"
+                    tool_results.append({"tool_call_id": tool_call.id, "role": "tool", "content": content})
 
             messages.extend(tool_results)
 

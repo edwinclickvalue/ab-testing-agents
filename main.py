@@ -3,6 +3,8 @@ import os
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from agent import run_agent_test
@@ -10,6 +12,7 @@ from agent import run_agent_test
 load_dotenv()
 
 app = FastAPI(title="AB Agent Tester")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 class TestRequest(BaseModel):
@@ -23,6 +26,11 @@ class ABTestRequest(BaseModel):
     url_b: str
     goal: str = "add product to cart"
     persona: str = "casual shopper"
+
+
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
 
 
 @app.post("/test")
