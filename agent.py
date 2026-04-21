@@ -104,26 +104,73 @@ class TestResult:
 
 
 async def _accept_cookies(page) -> None:
-    selectors = [
-        "text=Alles accepteren", "text=Accept all", "text=Accept All",
-        "text=Accepteer alles", "text=Accepteer alle", "text=Akkoord",
-        "text=Allow all", "text=Allow All", "text=I agree", "text=Agree",
-        "text=OK", "text=Okay", "text=Got it",
-        "[id*=accept][class*=cookie]", "[class*=accept][class*=cookie]",
-        "[id*=cookie-accept]", "[data-testid*=accept]",
-        "button[class*=accept]", "button[class*=Accept]",
-        "#onetrust-accept-btn-handler", ".js-accept-cookies",
-        "[aria-label*='accept']", "[aria-label*='Accept']",
+    # Words that indicate "accept all" — never click links containing policy/info words
+    ACCEPT_TEXTS = [
+        "alles accepteren", "accept all", "accepteer alles", "accepteer alle",
+        "allow all", "alle cookies accepteren", "alle cookies toestaan",
+        "i agree to all", "agree to all", "akkoord met alle",
     ]
-    for sel in selectors:
+    SECONDARY_TEXTS = [
+        "akkoord", "i agree", "agree", "okay", "got it", "allow cookies",
+        "accept cookies", "allow", "accept",
+    ]
+    REJECT_WORDS = {"policy", "statement", "verklaring", "meer", "more", "info",
+                    "lees", "read", "privacy", "details", "instellingen", "settings"}
+
+    def text_ok(text: str) -> bool:
+        words = set(text.lower().split())
+        return not words.intersection(REJECT_WORDS)
+
+    # 1. Specific IDs/classes first (most reliable)
+    specific = [
+        "#onetrust-accept-btn-handler",
+        ".js-accept-cookies",
+        "[data-testid='cookie-accept']",
+        "[id*=cookie-accept]",
+        "button[id*=accept-all]",
+        "button[class*=accept-all]",
+        "button[id*=acceptAll]",
+    ]
+    for sel in specific:
         try:
-            locator = page.locator(sel).first
-            if await locator.is_visible(timeout=500):
-                await locator.click(timeout=1000)
-                await page.wait_for_timeout(500)
+            el = page.locator(sel).first
+            if await el.is_visible(timeout=400):
+                await el.click(timeout=1000)
+                await page.wait_for_timeout(600)
                 return
         except Exception:
             continue
+
+    # 2. Buttons with strong accept-all text (exact phrase match)
+    for phrase in ACCEPT_TEXTS:
+        try:
+            el = page.locator(f"button:has-text('{phrase}')").first
+            if await el.is_visible(timeout=400):
+                txt = (await el.inner_text()).strip()
+                if text_ok(txt):
+                    await el.click(timeout=1000)
+                    await page.wait_for_timeout(600)
+                    return
+        except Exception:
+            continue
+
+    # 3. Buttons with secondary accept text — but only inside a cookie banner
+    banner_selectors = [
+        "[id*=cookie]", "[class*=cookie]", "[id*=consent]", "[class*=consent]",
+        "[id*=gdpr]", "[class*=gdpr]", "[aria-label*='cookie']",
+    ]
+    for banner_sel in banner_selectors:
+        for phrase in SECONDARY_TEXTS:
+            try:
+                el = page.locator(f"{banner_sel} button:has-text('{phrase}')").first
+                if await el.is_visible(timeout=300):
+                    txt = (await el.inner_text()).strip()
+                    if text_ok(txt):
+                        await el.click(timeout=1000)
+                        await page.wait_for_timeout(600)
+                        return
+            except Exception:
+                continue
 
 
 async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -> TestResult:
