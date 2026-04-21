@@ -106,75 +106,45 @@ class TestResult:
 async def _accept_cookies(page) -> None:
     clicked = await page.evaluate("""() => {
         const ACCEPT = [
-            // NL
-            'alles accepteren', 'accepteer alles', 'accepteer alle',
-            'alle cookies accepteren', 'alle cookies toestaan', 'akkoord met alle',
-            'accepteren', 'akkoord', 'toestaan', 'ja, ik accepteer', 'bevestigen',
-            // EN
-            'accept all', 'allow all', 'i agree to all', 'agree to all',
-            'allow cookies', 'accept cookies', 'i agree', 'agree', 'allow', 'accept',
-            'okay', 'got it',
-            // DE
-            'alle akzeptieren', 'alle annehmen', 'alle cookies akzeptieren',
-            'zustimmen', 'akzeptieren', 'annehmen', 'einverstanden', 'ich stimme zu',
-            'alle auswählen', 'weiter',
-            // FR
-            'tout accepter', 'accepter tout', 'accepter tous', "j'accepte",
-            'accepter', "j'accepte tout", "d'accord", 'tout autoriser',
-            'autoriser tout', 'autoriser',
-            // ES
-            'aceptar todo', 'aceptar todas', 'permitir todo', 'acepto',
-            'aceptar', 'permitir', 'de acuerdo',
-            // IT
-            'accetta tutto', 'accetta tutti', 'consenti tutto', 'accetto',
-            'accetta', 'consenti', 'sono d\'accordo',
-            // PT
-            'aceitar tudo', 'aceitar todos', 'concordo com tudo',
-            'aceitar', 'concordo', 'permitir tudo', 'permitir',
-            // PL
-            'zaakceptuj wszystko', 'akceptuj wszystko', 'zaakceptuj wszystkie',
-            'zaakceptuj', 'akceptuję', 'akceptuj', 'zgadzam się',
-            // CZ
-            'přijmout vše', 'přijmout všechny', 'souhlasím se vším',
-            'přijmout', 'souhlasím', 'přijímám',
-            // SK
-            'prijať všetko', 'prijať všetky', 'súhlasím',
-            'prijať', 'akceptovať',
-            // HU
-            'összes elfogadása', 'mindent elfogad', 'elfogadom az összeset',
-            'elfogad', 'elfogadom', 'beleegyezem',
-            // RO
-            'acceptați toate', 'acceptați tot', 'accept toate',
-            'acceptați', 'accept', 'sunt de acord',
-            // SV
-            'acceptera alla', 'godkänn alla', 'godkänn allt',
-            'acceptera', 'godkänn', 'jag godkänner',
-            // DA
-            'accepter alle', 'godkend alle', 'accepter alle cookies',
-            'accepter', 'godkend', 'jeg accepterer',
-            // NO
-            'godta alle', 'aksepter alle', 'godta alle informasjonskapsler',
-            'godta', 'aksepter', 'jeg godtar',
-            // FI
-            'hyväksy kaikki', 'hyväksy kaikki evästeet',
-            'hyväksy', 'suostun',
-            // EL (Greek)
-            'αποδοχή όλων', 'αποδοχή όλων των cookies',
-            'αποδοχή', 'συμφωνώ',
-            // HR
-            'prihvati sve', 'prihvati sve kolačiće', 'prihvati',
-            // BG
-            'приемане на всички', 'приемам всички', 'приемам',
-            // ET
-            'nõustu kõigiga', 'nõustu kõigi küpsistega', 'nõustu',
-            // LV
-            'piekrist visiem', 'piekrist', 'piekrītu',
-            // LT
-            'sutikti su visais', 'sutikti', 'sutinku',
-            // SL
-            'sprejmi vse', 'sprejmi', 'strinjam se',
-            // MT
-            'aċċetta kollox', 'aċċetta',
+            "alles accepteren","accepteer alles","accepteer alle",
+            "alle cookies accepteren","alle cookies toestaan","akkoord met alle",
+            "accepteren","akkoord","toestaan","ja, ik accepteer","bevestigen",
+            "accept all","allow all","i agree to all","agree to all",
+            "allow cookies","accept cookies","i agree","agree","allow","accept",
+            "okay","got it",
+            "alle akzeptieren","alle annehmen","alle cookies akzeptieren",
+            "zustimmen","akzeptieren","annehmen","einverstanden","ich stimme zu",
+            "alle auswählen",
+            "tout accepter","accepter tout","accepter tous","j accepte",
+            "accepter","j accepte tout","d accord","tout autoriser","autoriser",
+            "aceptar todo","aceptar todas","permitir todo","acepto",
+            "aceptar","permitir","de acuerdo",
+            "accetta tutto","accetta tutti","consenti tutto","accetto",
+            "accetta","consenti","sono daccordo",
+            "aceitar tudo","aceitar todos","concordo com tudo",
+            "aceitar","concordo","permitir tudo","permitir",
+            "zaakceptuj wszystko","akceptuj wszystko","zaakceptuj wszystkie",
+            "zaakceptuj","akceptuje","akceptuj","zgadzam sie",
+            "prijmout vse","prijmout vsechny","souhlasim se vsim",
+            "prijmout","souhlasim","prijimam",
+            "prijat vsetko","prijat vsetky","suhlasim","prijat","akceptovat",
+            "osszes elfogadasa","mindent elfogad","elfogadom az osszeset",
+            "elfogad","elfogadom","beleegyezem",
+            "acceptati toate","acceptati tot","accept toate",
+            "acceptati","sunt de acord",
+            "acceptera alla","godkann alla","godkann allt",
+            "acceptera","godkann","jag godkanner",
+            "accepter alle","godkend alle","accepter","godkend","jeg accepterer",
+            "godta alle","aksepter alle","godta","aksepter","jeg godtar",
+            "hyvaksy kaikki","hyvaksy","suostun",
+            "αποδοχή όλων","αποδοχή","συμφωνώ",
+            "prihvati sve","prihvati",
+            "приемане на всички","приемам всички","приемам",
+            "noustu koigiga","noustu","noustun",
+            "piekrist visiem","piekrist","piekritu",
+            "sutikti su visais","sutikti","sutinku",
+            "sprejmi vse","sprejmi","strinjam se",
+            "accetta kollox","accetta",
         ];
         const REJECT = [
             'policy', 'statement', 'verklaring', 'meer informatie', 'more info',
