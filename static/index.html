@@ -192,6 +192,80 @@
     .friction-list li::before { content: "⚠ "; opacity: 0.6; }
     .no-friction { font-size: 0.85rem; color: #555; font-style: italic; }
 
+    .screenshots-title {
+      font-size: 0.75rem; font-weight: 500; color: #666;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-top: 20px; margin-bottom: 8px;
+    }
+
+    .screenshots-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: #333 transparent;
+    }
+
+    .screenshot-item {
+      flex: 0 0 auto;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .screenshot-item img {
+      height: 120px;
+      width: auto;
+      border-radius: 4px;
+      border: 1px solid #2a2a2a;
+      display: block;
+      transition: border-color 0.15s;
+    }
+
+    .screenshot-item:hover img { border-color: #555; }
+
+    .screenshot-step {
+      position: absolute;
+      top: 4px; left: 4px;
+      background: rgba(0,0,0,0.7);
+      color: #aaa;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .lightbox.active { display: flex; }
+
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 80vh;
+      border-radius: 6px;
+    }
+
+    .lightbox-close {
+      position: fixed;
+      top: 16px; right: 20px;
+      color: #888; font-size: 1.5rem;
+      cursor: pointer; line-height: 1;
+    }
+
+    .lightbox-label {
+      color: #666; font-size: 0.8rem;
+    }
+
     .ab-results-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -313,7 +387,25 @@
     </div>
   </div>
 
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close">✕</span>
+    <img id="lightboxImg" src="" alt="">
+    <div class="lightbox-label" id="lightboxLabel"></div>
+  </div>
+
   <script>
+    function openLightbox(b64, step, total) {
+      document.getElementById('lightboxImg').src = 'data:image/jpeg;base64,' + b64;
+      document.getElementById('lightboxLabel').textContent = `Stap ${step} van ${total}`;
+      document.getElementById('lightbox').classList.add('active');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
     // Tab switching
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -336,6 +428,20 @@
         i = (i + 1) % spinnerMessages.length;
         textEl.textContent = spinnerMessages[i];
       }, 3000);
+    }
+
+    function renderScreenshots(screenshots) {
+      if (!screenshots || screenshots.length === 0) return '';
+      const items = screenshots.map((b64, i) => `
+        <div class="screenshot-item" onclick="openLightbox('${b64}', ${i + 1}, ${screenshots.length})">
+          <img src="data:image/jpeg;base64,${b64}" alt="Stap ${i + 1}">
+          <span class="screenshot-step">Stap ${i + 1}</span>
+        </div>
+      `).join('');
+      return `
+        <div class="screenshots-title">Bezochte pagina's</div>
+        <div class="screenshots-strip">${items}</div>
+      `;
     }
 
     function renderSingleResult(data) {
@@ -362,6 +468,7 @@
         <div class="reason">${data.reason}</div>
         <div class="friction-title">Friction points</div>
         ${frictionHtml}
+        ${renderScreenshots(data.step_screenshots)}
       `;
     }
 

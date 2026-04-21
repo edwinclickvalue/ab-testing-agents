@@ -99,6 +99,7 @@ class TestResult:
     reason: str
     friction_points: list[str]
     screenshot_base64: str = ""
+    step_screenshots: list[str] = field(default_factory=list)
     error: str = ""
 
 
@@ -123,10 +124,12 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
         ]
 
         finish_result = None
+        step_screenshots = []
 
         for _ in range(20):  # max 20 steps
-            screenshot = await page.screenshot()
+            screenshot = await page.screenshot(type="jpeg", quality=70, full_page=False)
             screenshot_b64 = base64.b64encode(screenshot).decode()
+            step_screenshots.append(screenshot_b64)
 
             links = await page.evaluate("""() => {
                 return Array.from(document.querySelectorAll('a, button, [role=button]'))
@@ -217,8 +220,10 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
             if finish_result:
                 break
 
-        final_screenshot = await page.screenshot()
+        final_screenshot = await page.screenshot(type="jpeg", quality=70, full_page=False)
         final_b64 = base64.b64encode(final_screenshot).decode()
+        if not step_screenshots or step_screenshots[-1] != final_b64:
+            step_screenshots.append(final_b64)
         await browser.close()
 
     elapsed = time.time() - start
@@ -231,6 +236,7 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
             reason=finish_result["reason"],
             friction_points=finish_result["friction_points"],
             screenshot_base64=final_b64,
+            step_screenshots=step_screenshots,
         )
 
     return TestResult(
@@ -240,4 +246,5 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
         reason="Max steps reached without completing goal",
         friction_points=["Goal not reached within step limit"],
         screenshot_base64=final_b64,
+        step_screenshots=step_screenshots,
     )
