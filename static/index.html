@@ -239,7 +239,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.9);
+      background: rgba(0,0,0,0.92);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -250,7 +250,7 @@
     .lightbox.active { display: flex; }
 
     .lightbox img {
-      max-width: 90vw;
+      max-width: 88vw;
       max-height: 80vh;
       border-radius: 6px;
     }
@@ -262,9 +262,31 @@
       cursor: pointer; line-height: 1;
     }
 
-    .lightbox-label {
-      color: #666; font-size: 0.8rem;
+    .lightbox-label { color: #555; font-size: 0.8rem; }
+
+    .lightbox-nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
     }
+
+    .lightbox-arrow {
+      background: none;
+      border: 1px solid #333;
+      color: #aaa;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+      width: auto;
+      padding: 8px 16px;
+      border-radius: 6px;
+    }
+
+    .lightbox-arrow:hover { border-color: #666; color: #fff; }
+    .lightbox-arrow:disabled { opacity: 0.2; cursor: default; }
 
     .ab-results-grid {
       display: grid;
@@ -387,24 +409,49 @@
     </div>
   </div>
 
-  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
-    <span class="lightbox-close">✕</span>
+  <div class="lightbox" id="lightbox">
+    <span class="lightbox-close" onclick="closeLightbox()">✕</span>
     <img id="lightboxImg" src="" alt="">
-    <div class="lightbox-label" id="lightboxLabel"></div>
+    <div class="lightbox-nav">
+      <button class="lightbox-arrow" id="lightboxPrev" onclick="lightboxNav(-1)">← Vorige</button>
+      <div class="lightbox-label" id="lightboxLabel"></div>
+      <button class="lightbox-arrow" id="lightboxNext" onclick="lightboxNav(1)">Volgende →</button>
+    </div>
   </div>
 
   <script>
+    let _lbScreenshots = [];
+    let _lbIndex = 0;
+
     function openLightbox(b64, step, total) {
-      document.getElementById('lightboxImg').src = 'data:image/jpeg;base64,' + b64;
-      document.getElementById('lightboxLabel').textContent = `Stap ${step} van ${total}`;
+      _lbIndex = step - 1;
+      _updateLightbox();
       document.getElementById('lightbox').classList.add('active');
+    }
+
+    function _updateLightbox() {
+      const total = _lbScreenshots.length;
+      document.getElementById('lightboxImg').src = 'data:image/jpeg;base64,' + _lbScreenshots[_lbIndex];
+      document.getElementById('lightboxLabel').textContent = `Stap ${_lbIndex + 1} van ${total}`;
+      document.getElementById('lightboxPrev').disabled = _lbIndex === 0;
+      document.getElementById('lightboxNext').disabled = _lbIndex === total - 1;
+    }
+
+    function lightboxNav(dir) {
+      _lbIndex = Math.max(0, Math.min(_lbScreenshots.length - 1, _lbIndex + dir));
+      _updateLightbox();
     }
 
     function closeLightbox() {
       document.getElementById('lightbox').classList.remove('active');
     }
 
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+    document.addEventListener('keydown', e => {
+      if (!document.getElementById('lightbox').classList.contains('active')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') lightboxNav(-1);
+      if (e.key === 'ArrowRight') lightboxNav(1);
+    });
 
     // Tab switching
     document.querySelectorAll('.tab').forEach(tab => {
@@ -432,6 +479,7 @@
 
     function renderScreenshots(screenshots) {
       if (!screenshots || screenshots.length === 0) return '';
+      _lbScreenshots = screenshots;
       const items = screenshots.map((b64, i) => `
         <div class="screenshot-item" onclick="openLightbox('${b64}', ${i + 1}, ${screenshots.length})">
           <img src="data:image/jpeg;base64,${b64}" alt="Stap ${i + 1}">
