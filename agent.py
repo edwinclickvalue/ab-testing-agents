@@ -104,74 +104,53 @@ class TestResult:
 
 
 async def _accept_cookies(page) -> None:
-    # Words that indicate "accept all" — never click links containing policy/info words
-    ACCEPT_TEXTS = [
-        "alles accepteren", "accept all", "accepteer alles", "accepteer alle",
-        "allow all", "alle cookies accepteren", "alle cookies toestaan",
-        "i agree to all", "agree to all", "akkoord met alle",
-    ]
-    SECONDARY_TEXTS = [
-        "accepteren", "akkoord", "i agree", "agree", "okay", "got it",
-        "allow cookies", "accept cookies", "allow", "accept", "toestaan",
-        "ja, ik accepteer", "bevestigen",
-    ]
-    REJECT_WORDS = {"policy", "statement", "verklaring", "meer", "more", "info",
-                    "lees", "read", "privacy", "details", "instellingen", "settings"}
+    clicked = await page.evaluate("""() => {
+        const ACCEPT = [
+            'alles accepteren', 'accept all', 'accepteer alles', 'accepteer alle',
+            'alle cookies accepteren', 'alle cookies toestaan', 'allow all',
+            'i agree to all', 'agree to all', 'akkoord met alle',
+            'accepteren', 'akkoord', 'i agree', 'agree', 'allow cookies',
+            'accept cookies', 'toestaan', 'ja, ik accepteer', 'bevestigen',
+            'okay', 'got it', 'allow', 'accept',
+        ];
+        const REJECT = [
+            'policy', 'statement', 'verklaring', 'meer informatie', 'more info',
+            'lees meer', 'read more', 'privacy policy', 'cookie policy',
+            'instellingen', 'settings', 'aanpassen', 'customize', 'weigeren',
+            'decline', 'reject',
+        ];
 
-    def text_ok(text: str) -> bool:
-        words = set(text.lower().split())
-        return not words.intersection(REJECT_WORDS)
+        function score(el) {
+            const txt = el.innerText.trim().toLowerCase();
+            if (!txt || txt.length > 60) return 0;
+            if (REJECT.some(r => txt.includes(r))) return 0;
+            const matchIdx = ACCEPT.findIndex(a => txt.includes(a));
+            if (matchIdx === -1) return 0;
+            // higher score = earlier in ACCEPT list + prefer button over link
+            const tagBonus = el.tagName === 'BUTTON' ? 100 : 0;
+            return (ACCEPT.length - matchIdx) + tagBonus;
+        }
 
-    # 1. Specific IDs/classes first (most reliable)
-    specific = [
-        "#onetrust-accept-btn-handler",
-        ".js-accept-cookies",
-        "[data-testid='cookie-accept']",
-        "[id*=cookie-accept]",
-        "button[id*=accept-all]",
-        "button[class*=accept-all]",
-        "button[id*=acceptAll]",
-    ]
-    for sel in specific:
-        try:
-            el = page.locator(sel).first
-            if await el.is_visible(timeout=800):
-                await el.click(timeout=1000)
-                await page.wait_for_timeout(600)
-                return
-        except Exception:
-            continue
+        const candidates = Array.from(
+            document.querySelectorAll('button, a, [role="button"]')
+        ).filter(el => {
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;  // visible
+        });
 
-    # 2. Buttons with strong accept-all text (exact phrase match)
-    for phrase in ACCEPT_TEXTS:
-        try:
-            el = page.locator(f"button:has-text('{phrase}')").first
-            if await el.is_visible(timeout=800):
-                txt = (await el.inner_text()).strip()
-                if text_ok(txt):
-                    await el.click(timeout=1000)
-                    await page.wait_for_timeout(600)
-                    return
-        except Exception:
-            continue
+        const scored = candidates
+            .map(el => ({ el, s: score(el) }))
+            .filter(x => x.s > 0)
+            .sort((a, b) => b.s - a.s);
 
-    # 3. Buttons with secondary accept text — but only inside a cookie banner
-    banner_selectors = [
-        "[id*=cookie]", "[class*=cookie]", "[id*=consent]", "[class*=consent]",
-        "[id*=gdpr]", "[class*=gdpr]", "[aria-label*='cookie']",
-    ]
-    for banner_sel in banner_selectors:
-        for phrase in SECONDARY_TEXTS:
-            try:
-                el = page.locator(f"{banner_sel} button:has-text('{phrase}')").first
-                if await el.is_visible(timeout=800):
-                    txt = (await el.inner_text()).strip()
-                    if text_ok(txt):
-                        await el.click(timeout=1000)
-                        await page.wait_for_timeout(600)
-                        return
-            except Exception:
-                continue
+        if (scored.length > 0) {
+            scored[0].el.click();
+            return true;
+        }
+        return false;
+    }""")
+    if clicked:
+        await page.wait_for_timeout(600)
 
 
 async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -> TestResult:
