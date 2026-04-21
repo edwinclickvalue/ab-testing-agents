@@ -198,6 +198,7 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
         step_screenshots = []
 
         for _ in range(20):  # max 20 steps
+            await _accept_cookies(page)
             screenshot = await page.screenshot(type="jpeg", quality=70, full_page=False)
             screenshot_b64 = base64.b64encode(screenshot).decode()
             step_screenshots.append(screenshot_b64)
