@@ -111,8 +111,9 @@ async def _accept_cookies(page) -> None:
         "i agree to all", "agree to all", "akkoord met alle",
     ]
     SECONDARY_TEXTS = [
-        "akkoord", "i agree", "agree", "okay", "got it", "allow cookies",
-        "accept cookies", "allow", "accept",
+        "accepteren", "akkoord", "i agree", "agree", "okay", "got it",
+        "allow cookies", "accept cookies", "allow", "accept", "toestaan",
+        "ja, ik accepteer", "bevestigen",
     ]
     REJECT_WORDS = {"policy", "statement", "verklaring", "meer", "more", "info",
                     "lees", "read", "privacy", "details", "instellingen", "settings"}
@@ -134,7 +135,7 @@ async def _accept_cookies(page) -> None:
     for sel in specific:
         try:
             el = page.locator(sel).first
-            if await el.is_visible(timeout=400):
+            if await el.is_visible(timeout=800):
                 await el.click(timeout=1000)
                 await page.wait_for_timeout(600)
                 return
@@ -145,7 +146,7 @@ async def _accept_cookies(page) -> None:
     for phrase in ACCEPT_TEXTS:
         try:
             el = page.locator(f"button:has-text('{phrase}')").first
-            if await el.is_visible(timeout=400):
+            if await el.is_visible(timeout=800):
                 txt = (await el.inner_text()).strip()
                 if text_ok(txt):
                     await el.click(timeout=1000)
@@ -163,7 +164,7 @@ async def _accept_cookies(page) -> None:
         for phrase in SECONDARY_TEXTS:
             try:
                 el = page.locator(f"{banner_sel} button:has-text('{phrase}')").first
-                if await el.is_visible(timeout=300):
+                if await el.is_visible(timeout=800):
                     txt = (await el.inner_text()).strip()
                     if text_ok(txt):
                         await el.click(timeout=1000)
@@ -198,6 +199,7 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
         step_screenshots = []
 
         for _ in range(20):  # max 20 steps
+            await page.wait_for_timeout(800)  # allow JS-rendered banners to appear
             await _accept_cookies(page)
             screenshot = await page.screenshot(type="jpeg", quality=70, full_page=False)
             screenshot_b64 = base64.b64encode(screenshot).decode()
@@ -246,10 +248,10 @@ async def run_agent_test(url: str, goal: str, persona: str = "casual shopper") -
                     clicked = False
                     last_err = None
                     for attempt in [
-                        lambda: page.click(selector, timeout=3000),
-                        lambda: page.get_by_text(selector, exact=False).first.click(timeout=3000),
-                        lambda: page.locator(f"a:has-text('{selector}')").first.click(timeout=3000),
-                        lambda: page.locator(f"button:has-text('{selector}')").first.click(timeout=3000),
+                        lambda: page.click(selector, timeout=8000),
+                        lambda: page.get_by_text(selector, exact=False).first.click(timeout=8000),
+                        lambda: page.locator(f"a:has-text('{selector}')").first.click(timeout=8000),
+                        lambda: page.locator(f"button:has-text('{selector}')").first.click(timeout=8000),
                     ]:
                         try:
                             await attempt()
